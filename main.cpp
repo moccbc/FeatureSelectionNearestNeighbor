@@ -6,13 +6,16 @@
 #include <math.h>
 #include <float.h>
 #include <algorithm>
+#include <set>
 using namespace std;
 using ll = long long;
 
-long double distance(vector<long double> &a, vector<long double> &b, vector<int> &feats) {
+long double distance(vector<long double> &a, vector<long double> &b, auto &feats) {
     double sqsum = 0.0;
     auto sqr = [&] (const double x) { return x * x; };
 
+    // Only features that are relevant should
+    // count towards the distance function
     for (auto i:feats) {
         sqsum += sqr(a[i] - b[i]);
     }
@@ -20,18 +23,23 @@ long double distance(vector<long double> &a, vector<long double> &b, vector<int>
     return sqrt(sqsum);
 }
 
-double nnClassify(vector<vector<long double>> &train, vector<vector<long double>> &test, vector<int> &feats) {
+double nnClassify(vector<vector<long double>> &data, auto &feats) {
     double res = 0;
 
-    for (auto point:test) {
+    // For all of the points in the data
+    for (int i = 0; i < data.size(); i++) {
         int cat = 1;
         long double best = DBL_MAX;
 
-        int n = train.size();
-        for (int i = 0; i < n; i++) {
-            long double curr = distance(train[i], point, feats);
+        vector<long double> point = data[i];
+
+        // Compare the distance of the current point with the
+        // rest of the points in the training data
+        for (int j = 0; j < data.size(); j++) {
+            if (i == j) continue;
+            long double curr = distance(point, data[j], feats);
             if (curr < best) {
-                cat = train[i][0];
+                cat = data[j][0];
                 best = curr;
             }
         }
@@ -39,30 +47,22 @@ double nnClassify(vector<vector<long double>> &train, vector<vector<long double>
         if (cat == point[0]) res += 1;
     }
 
-    return res / double(test.size());
+    return res / double(data.size());
 }
 
-void featureSelection(vector<vector<long double>> data) {
+void featureSelectionForward(vector<vector<long double>> data) {
     int samples = data.size();
     int features = data[0].size();
 
-    vector<vector<long double>> train(data.begin(), data.begin() + 200);
-    vector<vector<long double>> test(data.begin()+200, data.end());
-
-    int sum = 0;
-    for (int i = 0; i < test.size(); i++) {
-        if (test[i][0] == 1) sum++;
-    }
-
     vector<int> optimalFeatures;
     double optimalAccuracy = 0.0;
-    vector<int> feats;
 
+    vector<int> feats;
     for (int i = 0; i < features; i++) {
         int tokeep = -1;
         double best = 0.0;
         if (i == 0) {
-            best = nnClassify(train, test, feats);
+            best = nnClassify(data, feats);
         }
         else {
             for (int j = 1; j < features; j++) {
@@ -75,7 +75,10 @@ void featureSelection(vector<vector<long double>> data) {
                 cout << "       Using feature set { ";
                 for (auto x:feats) cout << x << " ";
                 cout << "}, ";
-                double res = nnClassify(train, test, feats);
+
+                // Calculate the accuracy
+                double res = nnClassify(data, feats);
+
                 if (best < res) {
                     best = res;
                     tokeep = j;
@@ -101,10 +104,77 @@ void featureSelection(vector<vector<long double>> data) {
     cout << "}, that has an accuracy of " << optimalAccuracy << endl;
 }
 
-int main() {
-    freopen("smallTestData.txt", "r", stdin);
+void featureSelectionBackward(vector<vector<long double>> data) {
+    int samples = data.size();
+    int features = data[0].size();
 
-    int n = 297, m = 11;
+    set<int> optimalFeatures;
+    double optimalAccuracy = 0.0;
+
+    set<int> feats;
+    for (int i = 1; i < features; i++) feats.insert(i);
+
+    for (int i = 0; i < features; i++) {
+        int toremove = -1;
+        double best = 0.0;
+        if (feats.empty()) {
+            best = nnClassify(data, feats);
+        }
+        else {
+            for (int j = 1; j < features; j++) {
+                // Skip it if it is already removed
+                if (feats.find(j) == feats.end()) continue;
+
+                // Otherwise try it out!
+                feats.erase(j);
+                cout << "       Using feature set { ";
+                for (auto x:feats) cout << x << " ";
+                cout << "}, ";
+
+                // Calculate the accuracy
+                double res = nnClassify(data, feats);
+
+                if (best < res) {
+                    best = res;
+                    toremove = j;
+                }
+                cout << "accuracy is " << res << endl;
+                feats.insert(j);
+            }
+        }
+        if (toremove != -1) feats.erase(toremove);
+
+        cout << "Feature set { ";
+        for (auto x:feats) cout << x << " ";
+        cout << "} was the best. Accuracy is " << best << endl << endl;
+        if (best > optimalAccuracy) {
+            optimalAccuracy = best;
+            optimalFeatures = feats;
+        }
+    }
+
+    cout << "Done!" << endl;
+    cout << "The best feature subset was { ";
+    for (auto x:optimalFeatures) cout << x << " ";
+    cout << "}, that has an accuracy of " << optimalAccuracy << endl;
+}
+
+int main() {
+    cout << "Input 1) Small dataset or 2) Large dataset" << endl;
+    int choice;
+    cin >> choice;
+    int n, m;
+    if (choice == 1) {
+        freopen("smallTestData.txt", "r", stdin);
+        n = 297;
+        m = 11;
+    }
+    else if (choice == 2) {
+        freopen("largeTestData.txt", "r", stdin);
+        n = 1000;
+        m = 41;
+    }
+
     vector<vector<long double>> data(n, vector<long double> (m));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
@@ -112,5 +182,11 @@ int main() {
         }
     }
 
-    featureSelection(data);
+    cout << "Starting forward selection" << endl;
+    featureSelectionForward(data);
+    cout << endl;
+
+    cout << "Starting backward selection" << endl;
+    featureSelectionBackward(data);
+    cout << endl;
 }
