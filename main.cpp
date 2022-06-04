@@ -7,7 +7,9 @@
 #include <float.h>
 #include <algorithm>
 #include <set>
+#include <chrono>
 using namespace std;
+using namespace std::chrono;
 using ll = long long;
 
 long double distance(vector<long double> &a, vector<long double> &b, auto &feats) {
@@ -72,9 +74,9 @@ void featureSelectionForward(vector<vector<long double>> data) {
 
                 // Otherwise try it out!
                 feats.push_back(j);
-                cout << "       Using feature set { ";
-                for (auto x:feats) cout << x << " ";
-                cout << "}, ";
+                // cout << "       Using feature set { ";
+                // for (auto x:feats) cout << x << " ";
+                // cout << "}, ";
 
                 // Calculate the accuracy
                 double res = nnClassify(data, feats);
@@ -83,25 +85,26 @@ void featureSelectionForward(vector<vector<long double>> data) {
                     best = res;
                     tokeep = j;
                 }
-                cout << "accuracy is " << res << endl;
+                // cout << "accuracy is " << res << endl;
                 feats.pop_back();
             }
         }
         if (tokeep != -1) feats.push_back(tokeep);
 
-        cout << "Feature set { ";
+        //cout << "Feature set { ";
         for (auto x:feats) cout << x << " ";
-        cout << "} was the best. Accuracy is " << best << endl << endl;
+        //cout << "} was the best. Accuracy is " << best << endl << endl;
+        cout << ", " << best << endl;
         if (best > optimalAccuracy) {
             optimalAccuracy = best;
             optimalFeatures = feats;
         }
     }
 
-    cout << "Done!" << endl;
-    cout << "The best feature subset was { ";
-    for (auto x:optimalFeatures) cout << x << " ";
-    cout << "}, that has an accuracy of " << optimalAccuracy << endl;
+    // cout << "Done!" << endl;
+    // cout << "The best feature subset was { ";
+    // for (auto x:optimalFeatures) cout << x << " ";
+    // cout << "}, that has an accuracy of " << optimalAccuracy << endl;
 }
 
 void featureSelectionBackward(vector<vector<long double>> data) {
@@ -127,9 +130,9 @@ void featureSelectionBackward(vector<vector<long double>> data) {
 
                 // Otherwise try it out!
                 feats.erase(j);
-                cout << "       Using feature set { ";
-                for (auto x:feats) cout << x << " ";
-                cout << "}, ";
+                // cout << "       Using feature set { ";
+                // for (auto x:feats) cout << x << " ";
+                // cout << "}, ";
 
                 // Calculate the accuracy
                 double res = nnClassify(data, feats);
@@ -138,38 +141,42 @@ void featureSelectionBackward(vector<vector<long double>> data) {
                     best = res;
                     toremove = j;
                 }
-                cout << "accuracy is " << res << endl;
+                // cout << "accuracy is " << res << endl;
                 feats.insert(j);
             }
         }
         if (toremove != -1) feats.erase(toremove);
 
-        cout << "Feature set { ";
+        //cout << "Feature set { ";
         for (auto x:feats) cout << x << " ";
-        cout << "} was the best. Accuracy is " << best << endl << endl;
+        // cout << "} was the best. Accuracy is ";
+        cout << ", " << best << endl;
         if (best > optimalAccuracy) {
             optimalAccuracy = best;
             optimalFeatures = feats;
         }
     }
 
-    cout << "Done!" << endl;
-    cout << "The best feature subset was { ";
-    for (auto x:optimalFeatures) cout << x << " ";
-    cout << "}, that has an accuracy of " << optimalAccuracy << endl;
+    // cout << "Done!" << endl;
+    // cout << "The best feature subset was { ";
+    // for (auto x:optimalFeatures) cout << x << " ";
+    // cout << "}, that has an accuracy of " << optimalAccuracy << endl;
 }
 
 int main() {
     cout << "Input 1) Small dataset or 2) Large dataset" << endl;
-    int choice;
-    cin >> choice;
+    int choice = 2;
+    // cin >> choice;
+    cout << choice << endl;
     int n, m;
     if (choice == 1) {
+        cout << "Using small dataset!" << endl;
         freopen("smallTestData.txt", "r", stdin);
         n = 297;
         m = 11;
     }
     else if (choice == 2) {
+        cout << "Using large dataset!" << endl;
         freopen("largeTestData.txt", "r", stdin);
         n = 1000;
         m = 41;
@@ -183,10 +190,18 @@ int main() {
     }
 
     cout << "Starting forward selection" << endl;
+    auto start = high_resolution_clock::now();
     featureSelectionForward(data);
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds> (stop - start);
+    cout << "Time: " << duration.count() << " milliseconds" << endl;
     cout << endl;
 
     cout << "Starting backward selection" << endl;
+    start = high_resolution_clock::now();
     featureSelectionBackward(data);
+    stop = high_resolution_clock::now();
+    duration = duration_cast<milliseconds> (stop - start);
+    cout << "Time: " << duration.count() << " milliseconds" << endl;
     cout << endl;
 }
